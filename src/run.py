@@ -3,11 +3,11 @@ from TSModel import TSModel
 import yfinance as yf
 import numpy as np
 
-df = pd.read_csv("DailyDelhiClimateTrain.csv")
+df = pd.read_csv("../data/DailyDelhiClimateTrain.csv")
 df.index = pd.to_datetime(df["date"].values)
 df = df.drop(columns=['date', "meanpressure", "humidity", "wind_speed"])
 
-df_test = pd.read_csv("DailyDelhiClimateTest.csv")
+df_test = pd.read_csv("../data/DailyDelhiClimateTest.csv")
 df_test.index = pd.to_datetime(df_test["date"].values)
 df_test = df_test.drop(
     columns=['date', "meanpressure", "humidity", "wind_speed"])
