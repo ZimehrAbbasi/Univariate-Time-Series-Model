@@ -54,7 +54,7 @@ class TSModel:
         for val in values:
             self.Domain.add_value(val[0])
 
-    def create_training_set(self):
+    def create_training_set(self, period):
 
         training_set = [[] for _ in range(self.Domain.bucket_size)]
         X_train = []
@@ -70,32 +70,33 @@ class TSModel:
             bucket = bucket.next
 
         for sample in training_set:
+
             if len(sample) != self.Domain.size:
                 sample.append(sum(sample)/len(sample))
 
-            X_train.append(sample[:round(len(sample) * 0.75)])
+            X_train.append(deque(sample[:period]))
 
-            for val in sample[round(len(sample) * 0.75):]:
+            for val in sample[period:]:
                 Y_train.append(val)
 
         return X_train, Y_train
 
-    def train(self):
+    def train(self, period):
 
         if str(type(self.X_test)) != "<class 'pandas.core.frame.DataFrame'>":
             self.split()
 
         self.create_domain()
-        self.X_train, self.Y_train = self.create_training_set()
+        self.X_train, self.Y_train = self.create_training_set(period)
 
         i = 1
         while i * len(self.X_train) <= len(self.Y_train):
-            self.reg.fit(np.array(self.X_train), np.array(self.Y_train[(
-                i-1)*len(self.X_train):i*len(self.X_train)]))
+            self.reg.fit(np.array(self.X_train), np.array(
+                self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)]))
             i += 1
-            for j, val in enumerate(self.Y_train[(
-                    i-1)*len(self.X_train):i*len(self.X_train)]):
+            for j, val in enumerate(self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)]):
                 self.X_train[j].append(val)
+                self.X_train[j].popleft()
 
     def test(self):
 
@@ -123,9 +124,12 @@ class TSModel:
             r2 = r2_score(self.X_test, self.y_pred)
             mape = mean_absolute_percentage_error(self.X_test, self.y_pred)
 
-        print(f"Mean Squared Error: {mse}")
-        print(f"R^2 score: {r2}")
-        print(f"Mean Absolute Percentage Error: {mape}")
+        print("########################################")
+        print("Test results:")
+        print("Mean Squared Error: %.2f" % mse)
+        print("R^2 score: %.2f" % r2)
+        print("Mean Absolute Percentage Error: %.2f" % mape)
+        print("########################################")
 
     def predict(self, period):
 
