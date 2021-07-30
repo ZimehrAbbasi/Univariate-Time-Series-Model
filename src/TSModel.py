@@ -6,18 +6,25 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_percenta
 from matplotlib import pyplot
 from collections import deque
 from datetime import datetime, timedelta
+import torch
+from torch.autograd import Variable
+from LinearRegression import linearRegression
 
 # Working with data with the least count being days, i.e. every data point is of a new day
 
 
 class TSModel:
 
-    def __init__(self, freq, Train_path, Test_path=None):
+    def __init__(self, freq, p, Train_path, Test_path=None, learning_rate=0.000000000005, ):
         self.freq = freq  # Possible Weeks(W), Months(M), Years(Y)
-        self.reg = linear_model.LinearRegression()
+        self.model = linearRegression(p, 1)
+        self.criterion = torch.nn.MSELoss()
+        self.optimizer = torch.optim.SGD(
+            self.model.parameters(), lr=learning_rate)
         self.X_train = []
         self.Y_train = []
         self.y_pred = []
+        self.p = p
 
         if str(type(Train_path)) == "<class 'pandas.core.frame.DataFrame'>":
             self.Data_train = Train_path
@@ -93,16 +100,67 @@ class TSModel:
 
         i = 1
         while i * len(self.X_train) <= len(self.Y_train):
-            self.reg.fit(np.array(self.X_train), np.array(
+            self.model.fit(np.array(self.X_train), np.array(
                 self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)]))
             i += 1
             for j, val in enumerate(self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)]):
                 self.X_train[j].append(val)
                 self.X_train[j].popleft()
 
+    def train_nn(self):
+
+        if str(type(self.X_test)) != "<class 'pandas.core.frame.DataFrame'>":
+            self.split()
+
+        self.create_domain()
+        self.X_train, self.Y_train = self.create_training_set(self.p)
+        print(len(self.X_train), len(self.Y_train))
+
+        epochs = 1000
+
+        i = 1
+        while i * len(self.X_train) <= len(self.Y_train):
+
+            # Training
+            for epoch in range(epochs):
+                if torch.cuda.is_available():
+                    inputs = Variable(torch.from_numpy(self.X_train).cuda())
+                    labels = Variable(torch.from_numpy(self.Y_train).cuda())
+                else:
+                    inputs = Variable(torch.from_numpy(
+                        np.array(self.X_train, np.float32)))
+                    labels = Variable(torch.from_numpy(
+                        np.array(
+                            self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)], np.float32)))
+
+                self.optimizer.zero_grad()
+                outputs = self.model(inputs)
+                outputs = outputs.reshape(-1)
+                loss = self.criterion(outputs, labels)
+                loss.backward()
+                self.optimizer.step()
+
+            i += 1
+            for j, val in enumerate(self.Y_train[(i-1)*len(self.X_train):i*len(self.X_train)]):
+                self.X_train[j].append(val)
+                self.X_train[j].popleft()
+
+    def test_nn(self):
+
+        with torch.no_grad():
+            if torch.cuda.is_available():
+                predicted = self.model(Variable(torch.from_numpy(
+                    self.X_train).cuda())).cpu().data.numpy()
+            else:
+                predicted = self.model(
+                    Variable(torch.from_numpy(np.array(self.X_train, np.float32)))).data.numpy()
+
+            self.y_pred = predicted
+            print(self.y_pred)
+
     def test(self):
 
-        self.y_pred = self.reg.predict(self.X_train)
+        self.y_pred = self.model.predict(self.X_train)
 
         if len(self.y_pred) > len(self.X_test):
 
@@ -143,8 +201,9 @@ class TSModel:
             new_train.append(deque(i))
 
         for _ in range(period):
-
-            pred = self.reg.predict(new_train)
+            print(len(new_train))
+            pred = self.model(
+                Variable(torch.from_numpy(np.array(new_train, np.float32)))).data.numpy()
 
             for i in range(len(new_train)):
 
@@ -174,7 +233,7 @@ class TSModel:
         visualize["y_actual"] = self.X_test
         visualize["error"] = (visualize["y_pred"] -
                               visualize["y_actual"]).abs()
-        print(self.X_test)
+        print(self.Data_train[self.Data_train.columns[0]])
         ax = self.Data_train[self.Data_train.columns[0]
                              ].plot(color='r')
         am = visualize["y_pred"].plot(ax=ax, color='b')
