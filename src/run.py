@@ -42,10 +42,10 @@ df_test = df_test.drop(
 # df.index = pd.to_datetime(df["date"].values)
 # df = df.drop(columns=["date"])
 
-model = TSModel("Y", df, df_test)
+model = TSModel("Y", 3, df, df_test)
 # Number of values in the past to take into consideration
-model.train(period=3)
-model.test()
+model.train_nn()
+model.test_nn()
 # Number of periods in the future to predict
 model.predict(period=3)
 model.show()
