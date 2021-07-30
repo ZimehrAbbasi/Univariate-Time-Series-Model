@@ -35,7 +35,9 @@ class TSModel:
             self.X = self.Data_train
             self.X_test = None
 
-        if self.freq == "W":
+        if self.freq == "D":
+            self.Domain = Domain(1)
+        elif self.freq == "W":
             self.Domain = Domain(7)
         elif self.freq == "M":
             self.Domain = Domain(31)
@@ -172,7 +174,7 @@ class TSModel:
         visualize["y_actual"] = self.X_test
         visualize["error"] = (visualize["y_pred"] -
                               visualize["y_actual"]).abs()
-
+        print(self.X_test)
         ax = self.Data_train[self.Data_train.columns[0]
                              ].plot(color='r')
         am = visualize["y_pred"].plot(ax=ax, color='b')
