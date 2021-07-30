@@ -1,5 +1,6 @@
 import sys
 
+
 class Domain:
 
     class Bucket:
